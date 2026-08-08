@@ -11,7 +11,7 @@ Russian version: [README.ru.md](README.ru.md)
 
 This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2 and Gen 1**, mainly for:
 
-- HEVC streaming stability/compatibility
+- HEVC streaming stability/compatibility (including slideshow fix during HEVC streaming)
 - GPU composition behavior on Android TV
 
 ## What is changed in this fork
@@ -20,6 +20,7 @@ The fork includes patches around:
 
 - HEVC low-latency decoder option handling on affected Xiaomi/Amlogic devices 
 - HEVC decoder/RFI behavior tuning for Android TV
+- **Slideshow (image freezing) fix during HEVC streaming on Xiaomi TV Mi Stick Gen 1/2 running Android TV 14**
 - GPU composition forcing logic to reduce stutter scenarios on TV sticks
 - Additional renderer/frame-pacing enhancements 
 

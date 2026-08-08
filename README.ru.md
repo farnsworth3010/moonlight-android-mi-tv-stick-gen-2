@@ -11,7 +11,7 @@ English version: [README.md](README.md)
 
 Этот репозиторий — форк **Moonlight Android** с исправлениями под **Mi TV Stick 4K Gen 2 и Gen 1**, в основном для:
 
-- стабильности/совместимости HEVC-стриминга
+- стабильности/совместимости HEVC-стриминга (включая исправление эффекта слайд-шоу при HEVC-стриминге)
 - поведения GPU composition на Android TV
 
 ## Что изменено в этом форке
@@ -20,6 +20,7 @@ English version: [README.md](README.md)
 
 - обработка HEVC low-latency параметров декодера на затронутых устройствах Xiaomi/Amlogic
 - настройка поведения HEVC decoder/RFI для Android TV
+- **исправление эффекта слайд-шоу (зависание картинки) при HEVC-стриминге на Xiaomi TV Mi Stick Gen 1/2 с Android TV 14**
 - логика форсирования GPU composition для уменьшения сценариев со статтерами на TV stick
 - дополнительные улучшения рендера и frame pacing
 
