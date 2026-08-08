@@ -1,6 +1,13 @@
+<p align="center">
+  <img src="app/src/main/res/drawable/app_icon.png" alt="Moonlight Android app icon" width="144" />
+</p>
+<p align="center"><strong>Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1</strong></p>
+
 # Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1
 
 ![Example stream output](docs/images/example-stream.jpg)
+
+Russian version: [README.ru.md](README.ru.md)
 
 This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2 and Gen 1**, mainly for:
 
@@ -15,6 +22,12 @@ The fork includes patches around:
 - HEVC decoder/RFI behavior tuning for Android TV
 - GPU composition forcing logic to reduce stutter scenarios on TV sticks
 - Additional renderer/frame-pacing enhancements 
+
+## Download
+
+You can download the app from the [Releases page](https://github.com/farnsworth3010/moonlight-android-mi-tv-stick-gen-2/releases).
+
+The binary APK is built inside the GitHub Actions workflow, so the build process is transparent and reproducible.
 
 ## Build instructions
 
@@ -47,13 +60,13 @@ Validated on:
 - Device: **Mi TV Stick 4K Gen 2**
 - Streaming profile: **2K 60 FPS**
 - Frame pacing: **Balanced**
-- Tested using **vibepollo**
+- Tested using **[Vibepollo](https://github.com/Nonary/Vibepollo)**
 
 Low-latency mode can cause freezes on some affected configurations.
 
 ## Known issues
 
-- Streaming can still hang at random times (root cause is not fully understood yet).
+- Streaming can still hang at random times (root cause is not fully understood).
 - Smoothness may degrade when the large performance stats overlay is enabled.
 
 ## TV settings recommendations
@@ -77,6 +90,8 @@ If you reproduce freezes/hangs, please include:
 ## Credits
 
 - [Moonlight Android](https://github.com/moonlight-stream/moonlight-android)
+- [Sunshine](https://github.com/LizardByte/Sunshine)
+- [Vibepollo](https://github.com/Nonary/Vibepollo)
 - [Nun-z/moonlight-android](https://github.com/Nun-z/moonlight-android)
 - [Viktsolovevwork278/moonlight-android-hevc-fix](https://github.com/Viktsolovevwork278/moonlight-android-hevc-fix)
 
