@@ -52,6 +52,15 @@ public class MediaCodecHelper {
     private static boolean isLowEndSnapdragon = false;
     private static boolean isAdreno620 = false;
     private static boolean initialized = false;
+    // Device model aliases for Xiaomi TV Stick 4K family:
+    // - MDZ-33-AA: Xiaomi TV Stick 4K (2nd Gen)
+    // - MiTV-AFMU1: Xiaomi TV Stick 4K (2nd Gen) firmware/device alias
+    // - MiTV-AYFR0: Xiaomi TV Stick 4K (previous generation / V2)
+    private static final String[] HEVC_LOW_LATENCY_BROKEN_MODEL_PATTERNS = {
+            "MDZ-33-AA",
+            "MiTV-AFMU1",
+            "MiTV-AYFR0"
+    };
 
     static {
         directSubmitPrefixes = new LinkedList<>();
@@ -488,25 +497,38 @@ public class MediaCodecHelper {
                 !isAdreno620;
     }
 
-public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, int tryNumber) {
-    boolean isAffectedHevcDecoder =
-            "video/hevc".equals(videoFormat.getString(MediaFormat.KEY_MIME))
-                    && "MiTV-AYFR0".equalsIgnoreCase(Build.MODEL)
-                    && "c2.amlogic.hevc.decoder".equalsIgnoreCase(decoderInfo.getName());
+    private static boolean isHevcLowLatencyBrokenModel(String model) {
+        if (model == null) {
+            return false;
+        }
 
-    if (isAffectedHevcDecoder) {
-        // Low-latency options break HEVC playback on this Amlogic decoder,
-        // but realtime codec priority may still improve decoding stability.
-        if (tryNumber == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            LimeLog.info("Using realtime HEVC priority without low-latency options on MiTV-AYFR0");
-            videoFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
-            return true;
+        for (String pattern : HEVC_LOW_LATENCY_BROKEN_MODEL_PATTERNS) {
+            if (model.equalsIgnoreCase(pattern)) {
+                return true;
+            }
         }
 
         return false;
     }
 
-    // Options here should be tried in the order of most to least risky.
+    public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, int tryNumber) {
+        boolean isAffectedHevcDecoder =
+                "video/hevc".equals(videoFormat.getString(MediaFormat.KEY_MIME))
+                        && "c2.amlogic.hevc.decoder".equalsIgnoreCase(decoderInfo.getName())
+                        && (isHevcLowLatencyBrokenModel(Build.MODEL) || isHevcLowLatencyBrokenModel(Build.DEVICE));
+
+        if (isAffectedHevcDecoder) {
+            // Low-latency options break HEVC playback on affected Amlogic-based TV sticks,
+            // but realtime codec priority may still improve decoding stability.
+            if (tryNumber == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                LimeLog.info("Using realtime HEVC priority without low-latency options on affected TV stick model");
+                videoFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
+                return true;
+            }
+
+            return false;
+        }
+
         // Options here should be tried in the order of most to least risky. The decoder will use
         // the first MediaFormat that doesn't fail in configure().
 
