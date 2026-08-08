@@ -35,6 +35,10 @@ jobs:
           UNSIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-unsigned.apk"
           ALIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-aligned.apk"
           SIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-signed-debugkey.apk"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          BUILD_TOOLS_DIR="$(find "${SDK_ROOT}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n1)"
+          ZIPALIGN="${BUILD_TOOLS_DIR}/zipalign"
+          APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
 
           keytool -genkeypair \
             -v \
@@ -47,15 +51,15 @@ jobs:
             -keysize 2048 \
             -validity 10000
 
-          zipalign -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
-          apksigner sign \
+          "$ZIPALIGN" -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+          "$APKSIGNER" sign \
             --ks debug.keystore \
             --ks-key-alias androiddebugkey \
             --ks-pass pass:android \
             --key-pass pass:android \
             --out "$SIGNED_APK" \
             "$ALIGNED_APK"
-          apksigner verify --verbose "$SIGNED_APK"
+          "$APKSIGNER" verify --verbose "$SIGNED_APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
