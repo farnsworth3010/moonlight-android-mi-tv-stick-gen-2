@@ -48,9 +48,19 @@ public class MediaCodecHelper {
     public static final boolean SHOULD_BYPASS_SOFTWARE_BLOCK =
             Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("cheets") || Build.BRAND.equals("Android-x86");
 
+    private static boolean isAmlogicRfiSafe = false;
     private static boolean isLowEndSnapdragon = false;
     private static boolean isAdreno620 = false;
     private static boolean initialized = false;
+    // Device model aliases for Xiaomi TV Stick 4K family:
+    // - MDZ-33-AA: Xiaomi TV Stick 4K (2nd Gen)
+    // - MiTV-AFMU1: Xiaomi TV Stick 4K (2nd Gen) firmware/device alias
+    // - MiTV-AYFR0: Xiaomi TV Stick 4K (1st gen)
+    private static final String[] HEVC_LOW_LATENCY_BROKEN_MODEL_PATTERNS = {
+            "MDZ-33-AA",
+            "MiTV-AFMU1",
+            "MiTV-AYFR0"
+    };
 
     static {
         directSubmitPrefixes = new LinkedList<>();
@@ -328,18 +338,13 @@ public class MediaCodecHelper {
             // do this for Fire TV devices.
             whitelistedHevcDecoders.add("omx.amlogic");
 
-            // Fire TV 3 seems to produce random artifacts on HEVC streams after packet loss.
-            // Enabling RFI turns these artifacts into full decoder output hangs, so let's not enable
-            // that for Fire OS 6 Amlogic devices. We will leave HEVC enabled because that's the only
-            // way these devices can hit 4K. Hopefully this is just a problem with the BSP used in
-            // the Fire OS 6 Amlogic devices, so we will leave this enabled for Fire OS 7+.
-            //
-            // Apart from a few TV models, the main Amlogic-based Fire TV devices are the Fire TV
-            // Cubes and Fire TV 3. This check will exclude the Fire TV 3 and Fire TV Cube 1, but
-            // allow the newer Fire TV Cubes to use HEVC RFI.
+            // Amlogic HEVC decoders are known to produce random artifacts and decoder hangs
+            // when HEVC RFI is enabled and packet loss occurs on many Android TV devices.
+            // However, Fire TV Cubes on Fire OS 7+ (Android 8+) have been confirmed working
+            // with HEVC RFI, so we'll enable it for those devices only.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                refFrameInvalidationHevcPrefixes.add("omx.amlogic");
-                refFrameInvalidationHevcPrefixes.add("c2.amlogic");
+                isAmlogicRfiSafe = true;
+                LimeLog.info("Enabling Amlogic HEVC RFI on Fire OS 7+ device");
             }
         }
 
@@ -492,25 +497,38 @@ public class MediaCodecHelper {
                 !isAdreno620;
     }
 
-public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, int tryNumber) {
-    boolean isAffectedHevcDecoder =
-            "video/hevc".equals(videoFormat.getString(MediaFormat.KEY_MIME))
-                    && "MiTV-AYFR0".equalsIgnoreCase(Build.MODEL)
-                    && "c2.amlogic.hevc.decoder".equalsIgnoreCase(decoderInfo.getName());
+    private static boolean isHevcLowLatencyBrokenModel(String model) {
+        if (model == null) {
+            return false;
+        }
 
-    if (isAffectedHevcDecoder) {
-        // Low-latency options break HEVC playback on this Amlogic decoder,
-        // but realtime codec priority may still improve decoding stability.
-        if (tryNumber == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            LimeLog.info("Using realtime HEVC priority without low-latency options on MiTV-AYFR0");
-            videoFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
-            return true;
+        for (String pattern : HEVC_LOW_LATENCY_BROKEN_MODEL_PATTERNS) {
+            if (model.equalsIgnoreCase(pattern)) {
+                return true;
+            }
         }
 
         return false;
     }
 
-    // Options here should be tried in the order of most to least risky.
+    public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, int tryNumber) {
+        boolean isAffectedHevcDecoder =
+                "video/hevc".equals(videoFormat.getString(MediaFormat.KEY_MIME))
+                        && "c2.amlogic.hevc.decoder".equalsIgnoreCase(decoderInfo.getName())
+                        && (isHevcLowLatencyBrokenModel(Build.MODEL) || isHevcLowLatencyBrokenModel(Build.DEVICE));
+
+        if (isAffectedHevcDecoder) {
+            // Low-latency options break HEVC playback on affected Amlogic-based TV sticks,
+            // but realtime codec priority may still improve decoding stability.
+            if (tryNumber == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                LimeLog.info("Using realtime HEVC priority without low-latency options on affected TV stick model");
+                videoFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
+                return true;
+            }
+
+            return false;
+        }
+
         // Options here should be tried in the order of most to least risky. The decoder will use
         // the first MediaFormat that doesn't fail in configure().
 
@@ -692,22 +710,35 @@ public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, Media
         return isDecoderInList(refFrameInvalidationAvcPrefixes, decoderName);
     }
 
-public static boolean decoderSupportsRefFrameInvalidationHevc(MediaCodecInfo decoderInfo) {
-    // HEVC decoders seem to universally support RFI, but it can have huge latency penalties
-    // for some decoders due to the number of references frames being > 1. Old Amlogic
-    // decoders are known to have this problem.
-    //
-    // If the decoder supports FEATURE_LowLatency or any vendor low latency option,
-    // we will use that as an indication that it can handle HEVC RFI without excessively
-    // buffering frames.
-    if (decoderSupportsAndroidRLowLatency(decoderInfo, "video/hevc") ||
-            decoderSupportsKnownVendorLowLatencyOption(decoderInfo.getName())) {
-        LimeLog.info("Enabling HEVC RFI based on low latency option support");
-        return true;
-    }
+    public static boolean decoderSupportsRefFrameInvalidationHevc(MediaCodecInfo decoderInfo) {
+        // HEVC decoders seem to universally support RFI, but it can have huge latency penalties
+        // for some decoders due to the number of references frames being > 1. Old Amlogic
+        // decoders are known to have this problem.
+        //
+        // If the decoder supports FEATURE_LowLatency or any vendor low latency option,
+        // we will use that as an indication that it can handle HEVC RFI without excessively
+        // buffering frames.
+        if (decoderSupportsAndroidRLowLatency(decoderInfo, "video/hevc") ||
+                decoderSupportsKnownVendorLowLatencyOption(decoderInfo.getName())) {
+            if (!isDecoderInList(amlogicDecoderPrefixes, decoderInfo.getName())) {
+                LimeLog.info("Enabling HEVC RFI based on low latency option support");
+                return true;
+            }
+            else if (isAmlogicRfiSafe) {
+                // This Amlogic device has been identified as safe for HEVC RFI
+                // (e.g., Amazon Fire TV devices on Fire OS 7+).
+                LimeLog.info("Enabling HEVC RFI on confirmed-safe Amlogic device");
+                return true;
+            }
+            else {
+                // Amlogic HEVC decoders commonly produce artifacts and hangs when
+                // HEVC RFI is used after packet loss.
+                LimeLog.info("Not enabling HEVC RFI on unconfirmed Amlogic decoder: " + decoderInfo.getName());
+            }
+        }
 
-    return isDecoderInList(refFrameInvalidationHevcPrefixes, decoderInfo.getName());
-}
+        return isDecoderInList(refFrameInvalidationHevcPrefixes, decoderInfo.getName());
+    }
 
     public static boolean decoderSupportsRefFrameInvalidationAv1(MediaCodecInfo decoderInfo) {
         // We'll use the same heuristics as HEVC for now
