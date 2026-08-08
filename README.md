@@ -1,15 +1,15 @@
 <p align="center">
   <img src="app/src/main/res/drawable/app_icon.png" alt="Moonlight Android app icon" width="144" />
 </p>
-<p align="center"><strong>Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1</strong></p>
+<p align="center"><strong>Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1 and Mi TV Box S 3rd Gen</strong></p>
 
-# Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1
+# Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1 and Mi TV Box S 3rd Gen
 
 ![Example stream output](docs/images/example-stream.jpg)
 
 Russian version: [README.ru.md](README.ru.md)
 
-This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2 and Gen 1**, mainly for:
+This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2 and Gen 1** and **Mi TV Box S 3rd Gen**, mainly for:
 
 - HEVC streaming stability/compatibility (including slideshow fix during HEVC streaming)
 - GPU composition behavior on Android TV
@@ -20,7 +20,7 @@ The fork includes patches around:
 
 - HEVC low-latency decoder option handling on affected Xiaomi/Amlogic devices 
 - HEVC decoder/RFI behavior tuning for Android TV
-- **Slideshow (image freezing) fix during HEVC streaming on Xiaomi TV Mi Stick Gen 1/2 running Android TV 14**
+- **Slideshow (image freezing) fix during HEVC streaming on Xiaomi Mi TV Stick Gen 1/2 and Mi TV Box S 3rd Gen running Android TV 14**
 - GPU composition forcing logic to reduce stutter scenarios on TV sticks
 - Additional renderer/frame-pacing enhancements 
 
