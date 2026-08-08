@@ -146,6 +146,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private TextView notificationOverlayView;
     private int requestedNotificationOverlayVisibility = View.GONE;
     private TextView performanceOverlayView;
+    private TextView performanceOverlayMiniView;
+    private TextView androidTvForceGpuCompositionView;
+    private boolean gpuCompositionToggle;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -271,6 +274,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         notificationOverlayView = findViewById(R.id.notificationOverlay);
 
         performanceOverlayView = findViewById(R.id.performanceOverlay);
+        performanceOverlayMiniView = findViewById(R.id.performanceOverlayMini);
+        androidTvForceGpuCompositionView = findViewById(R.id.androidTvForceGpuComposition);
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -370,7 +375,18 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // Check if the user has enabled performance stats overlay
         if (prefConfig.enablePerfOverlay) {
-            performanceOverlayView.setVisibility(View.VISIBLE);
+            if (prefConfig.enablePerfOverlayMini) {
+                performanceOverlayMiniView.setVisibility(View.VISIBLE);
+                performanceOverlayView.setVisibility(View.GONE);
+            }
+            else {
+                performanceOverlayView.setVisibility(View.VISIBLE);
+                performanceOverlayMiniView.setVisibility(View.GONE);
+            }
+        }
+
+        if (prefConfig.enableAndroidTvForceGpuComposition) {
+            androidTvForceGpuCompositionView.setVisibility(View.VISIBLE);
         }
 
         decoderRenderer = new MediaCodecDecoderRenderer(
@@ -596,7 +612,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 }
 
                 performanceOverlayView.setVisibility(View.GONE);
+                performanceOverlayMiniView.setVisibility(View.GONE);
                 notificationOverlayView.setVisibility(View.GONE);
+                androidTvForceGpuCompositionView.setVisibility(View.GONE);
 
                 // Disable sensors while in PiP mode
                 controllerHandler.disableSensors();
@@ -614,10 +632,19 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 }
 
                 if (prefConfig.enablePerfOverlay) {
-                    performanceOverlayView.setVisibility(View.VISIBLE);
+                    if (prefConfig.enablePerfOverlayMini) {
+                        performanceOverlayMiniView.setVisibility(View.VISIBLE);
+                    }
+                    else {
+                        performanceOverlayView.setVisibility(View.VISIBLE);
+                    }
                 }
 
                 notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
+
+                if (prefConfig.enableAndroidTvForceGpuComposition) {
+                    androidTvForceGpuCompositionView.setVisibility(View.VISIBLE);
+                }
 
                 // Enable sensors again after exiting PiP
                 controllerHandler.enableSensors();
@@ -2641,7 +2668,17 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                performanceOverlayView.setText(text);
+                if (prefConfig.enablePerfOverlayMini) {
+                    performanceOverlayMiniView.setText(text);
+                }
+                else {
+                    performanceOverlayView.setText(text);
+                }
+
+                if (prefConfig.enableAndroidTvForceGpuComposition) {
+                    gpuCompositionToggle = !gpuCompositionToggle;
+                    androidTvForceGpuCompositionView.setText(gpuCompositionToggle ? "\u00b7" : ".");
+                }
             }
         });
     }
