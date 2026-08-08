@@ -1,4 +1,4 @@
-name: Build patched Moonlight APK
+name: Build patched Moonlight release APK
 
 on:
   workflow_dispatch:
@@ -28,10 +28,37 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleNonRootDebug
+          ./gradlew assembleNonRootRelease -x lintVitalAnalyzeNonRootRelease --no-daemon
+
+      - name: Sign release APK (debug key)
+        run: |
+          UNSIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-unsigned.apk"
+          ALIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-aligned.apk"
+          SIGNED_APK="app/build/outputs/apk/nonRoot/release/app-nonRoot-release-signed-debugkey.apk"
+
+          keytool -genkeypair \
+            -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android \
+            -alias androiddebugkey \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
+
+          zipalign -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+          apksigner sign \
+            --ks debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out "$SIGNED_APK" \
+            "$ALIGNED_APK"
+          apksigner verify --verbose "$SIGNED_APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: moonlight-no-hevc-rfi
-          path: app/build/outputs/apk/nonRoot/debug/*.apk
+          name: moonlight-nonroot-release
+          path: app/build/outputs/apk/nonRoot/release/app-nonRoot-release-signed-debugkey.apk
