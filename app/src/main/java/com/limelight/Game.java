@@ -60,7 +60,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Rational;
+import android.view.Choreographer;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -149,6 +152,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private TextView performanceOverlayMiniView;
     private TextView androidTvForceGpuCompositionView;
     private boolean gpuCompositionToggle;
+    private boolean gpuCompositionTickerRunning;
+    private long gpuCompositionTickCounter;
+    private long lastGpuCompositionLogTimeMs;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -183,6 +189,60 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     public static final String EXTRA_PC_NAME = "PcName";
     public static final String EXTRA_APP_HDR = "HDR";
     public static final String EXTRA_SERVER_CERT = "ServerCert";
+
+    private final Choreographer.FrameCallback forceGpuCompositionTick = new Choreographer.FrameCallback() {
+        @Override
+        public void doFrame(long frameTimeNanos) {
+            if (!gpuCompositionTickerRunning || androidTvForceGpuCompositionView == null) {
+                return;
+            }
+
+            gpuCompositionToggle = !gpuCompositionToggle;
+            androidTvForceGpuCompositionView.setText(gpuCompositionToggle ? "\u00b7" : ".");
+            androidTvForceGpuCompositionView.setAlpha(gpuCompositionToggle ? 0.99f : 1.0f);
+            androidTvForceGpuCompositionView.invalidate();
+
+            gpuCompositionTickCounter++;
+            long now = SystemClock.uptimeMillis();
+            if (now - lastGpuCompositionLogTimeMs >= 5000) {
+                LimeLog.info("Force GPU composition tick active: " + gpuCompositionTickCounter + " frames");
+                lastGpuCompositionLogTimeMs = now;
+            }
+
+            Choreographer.getInstance().postFrameCallback(this);
+        }
+    };
+
+    private void updateGpuCompositionTickerState() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    updateGpuCompositionTickerState();
+                }
+            });
+            return;
+        }
+
+        boolean shouldRun = prefConfig != null &&
+                prefConfig.enableAndroidTvForceGpuComposition &&
+                connected &&
+                !isHidingOverlays &&
+                androidTvForceGpuCompositionView != null;
+
+        if (shouldRun) {
+            if (!gpuCompositionTickerRunning) {
+                gpuCompositionTickerRunning = true;
+                gpuCompositionTickCounter = 0;
+                lastGpuCompositionLogTimeMs = SystemClock.uptimeMillis();
+                Choreographer.getInstance().postFrameCallback(forceGpuCompositionTick);
+            }
+        }
+        else if (gpuCompositionTickerRunning) {
+            gpuCompositionTickerRunning = false;
+            Choreographer.getInstance().removeFrameCallback(forceGpuCompositionTick);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -387,6 +447,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         if (prefConfig.enableAndroidTvForceGpuComposition) {
             androidTvForceGpuCompositionView.setVisibility(View.VISIBLE);
+        }
+        else {
+            androidTvForceGpuCompositionView.setVisibility(View.GONE);
         }
 
         decoderRenderer = new MediaCodecDecoderRenderer(
@@ -615,6 +678,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 performanceOverlayMiniView.setVisibility(View.GONE);
                 notificationOverlayView.setVisibility(View.GONE);
                 androidTvForceGpuCompositionView.setVisibility(View.GONE);
+                updateGpuCompositionTickerState();
 
                 // Disable sensors while in PiP mode
                 controllerHandler.disableSensors();
@@ -645,6 +709,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 if (prefConfig.enableAndroidTvForceGpuComposition) {
                     androidTvForceGpuCompositionView.setVisibility(View.VISIBLE);
                 }
+
+                updateGpuCompositionTickerState();
 
                 // Enable sensors again after exiting PiP
                 controllerHandler.enableSensors();
@@ -1076,6 +1142,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             unbindService(usbDriverServiceConnection);
         }
 
+        gpuCompositionTickerRunning = false;
+        Choreographer.getInstance().removeFrameCallback(forceGpuCompositionTick);
+
         // Destroy the capture provider
         inputCaptureProvider.destroy();
     }
@@ -1098,6 +1167,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     @Override
     protected void onStop() {
         super.onStop();
+
+        gpuCompositionTickerRunning = false;
+        Choreographer.getInstance().removeFrameCallback(forceGpuCompositionTick);
 
         SpinnerDialog.closeDialogs(this);
         Dialog.closeDialogs();
@@ -2237,6 +2309,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         if (connecting || connected) {
             connecting = connected = false;
             updatePipAutoEnter();
+            updateGpuCompositionTickerState();
 
             controllerHandler.stop();
 
@@ -2422,6 +2495,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+                updateGpuCompositionTickerState();
 
                 // Hide the mouse cursor now after a short delay.
                 // Doing it before dismissing the spinner seems to be undone
@@ -2673,11 +2747,6 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 }
                 else {
                     performanceOverlayView.setText(text);
-                }
-
-                if (prefConfig.enableAndroidTvForceGpuComposition) {
-                    gpuCompositionToggle = !gpuCompositionToggle;
-                    androidTvForceGpuCompositionView.setText(gpuCompositionToggle ? "\u00b7" : ".");
                 }
             }
         });
