@@ -55,7 +55,7 @@ public class MediaCodecHelper {
     // Device model aliases for Xiaomi TV Stick 4K family:
     // - MDZ-33-AA: Xiaomi TV Stick 4K (2nd Gen)
     // - MiTV-AFMU1: Xiaomi TV Stick 4K (2nd Gen) firmware/device alias
-    // - MiTV-AYFR0: Xiaomi TV Stick 4K (previous generation / V2)
+    // - MiTV-AYFR0: Xiaomi TV Stick 4K (1st gen)
     private static final String[] HEVC_LOW_LATENCY_BROKEN_MODEL_PATTERNS = {
             "MDZ-33-AA",
             "MiTV-AFMU1",
