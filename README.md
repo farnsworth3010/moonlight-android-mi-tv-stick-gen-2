@@ -35,7 +35,7 @@ The fork includes patches around:
 
 Current defaults are tuned for the target device profile:
 
-- Resolution: **2K (2560x1440)**
+- Resolution: **Full HD (1920x1080)**
 - Codec preference: **HEVC**
 - Frame pacing: **Balanced**
 - Android TV force GPU composition: **Enabled**
