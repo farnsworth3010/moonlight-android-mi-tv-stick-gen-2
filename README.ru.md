@@ -3,7 +3,7 @@
 </p>
 <p align="center"><strong>Форк Moonlight Android для Mi TV Stick 4K Gen 2</strong></p>
 
-# Форк Moonlight Android для Mi TV Stick 4K Gen 2
+# Форк Moonlight Android для Mi TV Stick 4K Gen 2 и TV Box S 3rd gen
 
 ![Пример работы стриминга](docs/images/example-stream.jpg)
 
