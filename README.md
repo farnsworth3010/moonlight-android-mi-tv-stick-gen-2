@@ -3,7 +3,7 @@
 </p>
 <p align="center"><strong>Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1 and Mi TV Box S 3rd Gen</strong></p>
 
-# Moonlight Android Fork for Mi TV Stick 4K Gen 2/Gen 1 and Mi TV Box S 3rd Gen
+# Moonlight Android Fork for Mi TV Stick 4K Gen 2 and Mi TV Box S 3rd Gen
 
 ![Example stream output](docs/images/example-stream.jpg)
 
