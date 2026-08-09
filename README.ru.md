@@ -1,15 +1,15 @@
 <p align="center">
   <img src="app/src/main/res/drawable/app_icon.png" alt="Иконка приложения Moonlight Android" width="144" />
 </p>
-<p align="center"><strong>Форк Moonlight Android для Mi TV Stick 4K Gen 2/Gen 1</strong></p>
+<p align="center"><strong>Форк Moonlight Android для Mi TV Stick 4K Gen 2</strong></p>
 
-# Форк Moonlight Android для Mi TV Stick 4K Gen 2/Gen 1
+# Форк Moonlight Android для Mi TV Stick 4K Gen 2
 
 ![Пример работы стриминга](docs/images/example-stream.jpg)
 
 English version: [README.md](README.md)
 
-Этот репозиторий — форк **Moonlight Android** с исправлениями под **Mi TV Stick 4K Gen 2 и Gen 1**, в основном для:
+Этот репозиторий — форк **Moonlight Android** с исправлениями под **Mi TV Stick 4K Gen 2**, в основном для:
 
 - стабильности/совместимости HEVC-стриминга (включая исправление эффекта слайд-шоу при HEVC-стриминге)
 - поведения GPU composition на Android TV
@@ -20,7 +20,7 @@ English version: [README.md](README.md)
 
 - обработка HEVC low-latency параметров декодера на затронутых устройствах Xiaomi/Amlogic
 - настройка поведения HEVC decoder/RFI для Android TV
-- **исправление эффекта слайд-шоу (зависание картинки) при HEVC-стриминге на Xiaomi TV Mi Stick Gen 1/2 с Android TV 14**
+- **исправление эффекта слайд-шоу (зависание картинки) при HEVC-стриминге на Xiaomi TV Mi Stick 2 с Android TV 14**
 - логика форсирования GPU composition для уменьшения сценариев со статтерами на TV stick
 - дополнительные улучшения рендера и frame pacing
 
