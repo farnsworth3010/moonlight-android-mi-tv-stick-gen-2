@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jcodec.codecs.h264.H264Utils;
@@ -992,51 +993,58 @@ lastCodecRenderTimeNanos = renderTimeNanos;
             return;
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            frameTimeNanos -= activity.getWindowManager().getDefaultDisplay().getAppVsyncOffsetNanos();
-        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                frameTimeNanos -= activity.getWindowManager().getDefaultDisplay().getAppVsyncOffsetNanos();
+            }
 
-        // Don't render unless a new frame is due. This prevents microstutter when streaming
-        // at a frame rate that doesn't match the display (such as 60 FPS on 120 Hz).
-        long actualFrameTimeDeltaNs = frameTimeNanos - lastRenderedFrameTimeNanos;
-        long expectedFrameTimeDeltaNs = 800000000 / refreshRate; // within 80% of the next frame
-        if (actualFrameTimeDeltaNs >= expectedFrameTimeDeltaNs) {
-            // Render up to one frame when in frame pacing mode.
-            //
-            // NB: Since the queue limit is 2, we won't starve the decoder of output buffers
-            // by holding onto them for too long. This also ensures we will have that 1 extra
-            // frame of buffer to smooth over network/rendering jitter.
-            Integer nextOutputBuffer = outputBufferQueue.poll();
-            if (nextOutputBuffer != null) {
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos);
-                    }
-                    else {
-                        videoDecoder.releaseOutputBuffer(nextOutputBuffer, true);
-                    }
-
-                    lastRenderedFrameTimeNanos = frameTimeNanos;
-                    activeWindowVideoStats.totalFramesRendered++;
-                } catch (IllegalStateException ignored) {
+            // Don't render unless a new frame is due. This prevents microstutter when streaming
+            // at a frame rate that doesn't match the display (such as 60 FPS on 120 Hz).
+            long actualFrameTimeDeltaNs = frameTimeNanos - lastRenderedFrameTimeNanos;
+            long expectedFrameTimeDeltaNs = 800000000 / refreshRate; // within 80% of the next frame
+            if (actualFrameTimeDeltaNs >= expectedFrameTimeDeltaNs) {
+                // Render up to one frame when in frame pacing mode.
+                //
+                // NB: Since the queue limit is 2, we won't starve the decoder of output buffers
+                // by holding onto them for too long. This also ensures we will have that 1 extra
+                // frame of buffer to smooth over network/rendering jitter.
+                Integer nextOutputBuffer = outputBufferQueue.poll();
+                if (nextOutputBuffer != null) {
                     try {
-                        // Try to avoid leaking the output buffer by releasing it without rendering
-                        videoDecoder.releaseOutputBuffer(nextOutputBuffer, false);
-                    } catch (IllegalStateException e) {
-                        // This will leak nextOutputBuffer, but there's really nothing else we can do
-                        e.printStackTrace();
-                        handleDecoderException(e);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos);
+                        }
+                        else {
+                            videoDecoder.releaseOutputBuffer(nextOutputBuffer, true);
+                        }
+
+                        lastRenderedFrameTimeNanos = frameTimeNanos;
+                        activeWindowVideoStats.totalFramesRendered++;
+                    } catch (IllegalStateException ignored) {
+                        try {
+                            // Try to avoid leaking the output buffer by releasing it without rendering
+                            videoDecoder.releaseOutputBuffer(nextOutputBuffer, false);
+                        } catch (IllegalStateException e) {
+                            // This will leak nextOutputBuffer, but there's really nothing else we can do
+                            e.printStackTrace();
+                            handleDecoderException(e);
+                        }
                     }
                 }
             }
+
+            // Attempt codec recovery even if we have nothing to render right now. Recovery can still
+            // be required even if the codec died before giving any output.
+            doCodecRecoveryIfRequired(CR_FLAG_CHOREOGRAPHER);
+        } catch (Exception e) {
+            // Catch any unexpected exceptions to prevent the Choreographer callback chain from breaking
+            LimeLog.warning("Exception in doFrame: "+e.getMessage());
+            e.printStackTrace();
+        } finally {
+            // Request another callback for next frame
+            // This must always be called to maintain the callback chain, even if an exception occurred
+            Choreographer.getInstance().postFrameCallback(this);
         }
-
-        // Attempt codec recovery even if we have nothing to render right now. Recovery can still
-        // be required even if the codec died before giving any output.
-        doCodecRecoveryIfRequired(CR_FLAG_CHOREOGRAPHER);
-
-        // Request another callback for next frame
-        Choreographer.getInstance().postFrameCallback(this);
     }
 
     private void startChoreographerThread() {
@@ -1122,7 +1130,13 @@ lastCodecRenderTimeNanos = renderTimeNanos;
                                 // refresh rate).
                                 if (outputBufferQueue.size() == OUTPUT_BUFFER_QUEUE_LIMIT) {
                                     try {
-                                        videoDecoder.releaseOutputBuffer(outputBufferQueue.take(), false);
+                                        // Use poll with timeout to avoid blocking indefinitely if the consumer
+                                        // thread is not processing frames (which can happen with HEVC decoders).
+                                        // A 100ms timeout gives the Choreographer callback time to process frames.
+                                        Integer oldBuffer = outputBufferQueue.poll(100, TimeUnit.MILLISECONDS);
+                                        if (oldBuffer != null) {
+                                            videoDecoder.releaseOutputBuffer(oldBuffer, false);
+                                        }
                                     } catch (InterruptedException e) {
                                         // We're shutting down, so we can just drop this buffer on the floor
                                         // and it will be reclaimed when the codec is released.
