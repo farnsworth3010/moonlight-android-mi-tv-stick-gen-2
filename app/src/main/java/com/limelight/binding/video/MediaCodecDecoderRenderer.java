@@ -1139,6 +1139,9 @@ lastCodecRenderTimeNanos = renderTimeNanos;
                                         // Use poll with timeout to avoid blocking indefinitely if the consumer
                                         // thread is not processing frames (which can happen with HEVC decoders).
                                         // A 100ms timeout gives the Choreographer callback time to process frames.
+                                        // A null return here means some other consumer (the Choreographer
+                                        // callback) already drained the queue below the limit while we were
+                                        // waiting, so the queue already has room and it's safe to proceed.
                                         Integer oldBuffer = outputBufferQueue.poll(100, TimeUnit.MILLISECONDS);
                                         if (oldBuffer != null) {
                                             videoDecoder.releaseOutputBuffer(oldBuffer, false);
