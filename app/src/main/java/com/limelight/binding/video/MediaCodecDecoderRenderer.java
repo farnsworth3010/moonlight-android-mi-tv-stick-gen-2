@@ -1036,8 +1036,14 @@ lastCodecRenderTimeNanos = renderTimeNanos;
             // Attempt codec recovery even if we have nothing to render right now. Recovery can still
             // be required even if the codec died before giving any output.
             doCodecRecoveryIfRequired(CR_FLAG_CHOREOGRAPHER);
+        } catch (RendererException e) {
+            // RendererException indicates an unrecoverable decoder failure. The crashListener has
+            // already been notified when this was thrown, so rethrow it to preserve the original
+            // fatal-crash behavior instead of silently retrying forever.
+            throw e;
         } catch (Exception e) {
-            // Catch any unexpected exceptions to prevent the Choreographer callback chain from breaking
+            // Catch any other unexpected exceptions to prevent the Choreographer callback chain
+            // from breaking due to transient/recoverable failures.
             LimeLog.warning("Exception in doFrame: "+e.getMessage());
             e.printStackTrace();
         } finally {
