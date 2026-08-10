@@ -9,7 +9,7 @@
 
 Russian version: [README.ru.md](README.ru.md)
 
-This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2 and Gen 1** and **Mi TV Box S 3rd Gen**, mainly for:
+This repository is a fork of **Moonlight Android** with device-focused fixes for **Mi TV Stick 4K Gen 2** and **Mi TV Box S 3rd Gen**, mainly for:
 
 - HEVC streaming stability/compatibility (including slideshow fix during HEVC streaming)
 - GPU composition behavior on Android TV
